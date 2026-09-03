@@ -14,12 +14,12 @@
 | `scripts/verify-tag-version.sh` | 校验触发 tag 与 `VERSION` 一致 |
 | `scripts/update-major-tag.sh` | 正式版强制更新主版本标签（`v1`） |
 | `tag.ps1` | 本地读取 `VERSION` 创建并推送 tag |
-| `test/`、`test/cmake/` | 直接编译与 CMake 两种模式的测试样例 |
+| `test/`、`test/cmake/`、`test/c/` | 直接编译 C++、CMake 与纯 C 三种模式的测试样例 |
 | `test/verify-output.sh` | 测试用：运行产物并校验输出 |
 
 ## Action 流程
 
-1. 构建步骤按 `runner.os` 分流：Linux 走 `build-cpp.sh`（bash），macOS 走 `build-cpp-macos.sh`（`shell: zsh {0}` 直接执行，脚本有可执行位；macOS 自带 bash 3.2 过老，故用默认 shell zsh，可用 `(N)` glob 限定符、递归 glob 等 zsh 特性），Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR`、`CXX_STANDARD` 传入，避免 shell 注入。
+1. 构建步骤按 `runner.os` 分流：Linux 走 `build-cpp.sh`（bash），macOS 走 `build-cpp-macos.sh`（`shell: zsh {0}` 直接执行，脚本有可执行位；macOS 自带 bash 3.2 过老，故用默认 shell zsh，可用 `(N)` glob 限定符、递归 glob 等 zsh 特性），Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR`、`CXX_STANDARD`、`C_STANDARD` 传入，避免 shell 注入。
 2. 构建脚本自动检测平台与架构，产物命名 `<name>-<version>-<os>-<arch>[.exe]`（版本号中的 `/` 替换为 `-`，兼容 PR 触发时的 `<PR 号>/merge`），输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
 3. 上传步骤始终执行 `scripts/upload-release.sh`，由脚本内的 `RELEASE` 开关控制，仅显式 `true` 时上传。布尔开关不能写在步骤 `if` 上——composite 输入在表达式里是字符串，`'false'` 也为真。
 4. 上传逻辑（读取 `TAG_NAME`、`EXTRA_FILES`、`RELEASE_BODY`、`RELEASE_NAME`、`PRERELEASE`、`DRAFT`）：Release 不存在则创建，随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
@@ -31,10 +31,11 @@
 
 ### 直接编译模式
 
-- 编译 `<base-dir>` 顶层（不递归）的 `*.cpp` / `*.cc` / `*.cxx`。
-- 编译器：Linux/macOS 优先 `c++`，回退 `g++`；Windows 使用 MinGW `g++`（GitHub 托管运行器预装）。
-- 编译参数：`-std=<CXX_STANDARD>`（`cxx-standard` 输入，纯编号自动补 `c++` 前缀，兼容 `gnu++*`，默认 `c++17`）与 `-O2`。
-- 链接策略：Windows `-static`（产物免依赖）；Linux `-static-libstdc++ -static-libgcc`；macOS 动态链接（不支持静态 libstdc++）。
+- 编译 `<base-dir>` 顶层（不递归）的 `*.c` / `*.cpp` / `*.cc` / `*.cxx`，按扩展名分组。
+- 编译器：C++ 在 Linux/macOS 优先 `c++`，回退 `g++`；C 各平台优先 `gcc`，回退 `cc`（macOS 上两者均为 clang）；Windows 使用 MinGW（GitHub 托管运行器预装）。
+- 编译参数：C++ 用 `-std=<CXX_STANDARD>`（`cxx-standard` 输入，纯编号自动补 `c++` 前缀，兼容 `gnu++*`，默认 `c++17`）；C 用 `-std=<C_STANDARD>`（`c-standard` 输入，纯编号自动补 `c` 前缀，兼容 `gnu*`，缺省不传 `-std` 即编译器默认，避免关闭 GNU 扩展破坏可编译代码）。均为 `-O2`。
+- 混合目录：`.c` 需由 C 编译器单独编译成 `.o`（`g++` 会把 `.c` 当 C++ 编译），再与 C++ 源文件由 C++ 编译器链接；`.o` 写入临时目录，链接后删除。
+- 链接策略：Windows `-static`（产物免依赖）；Linux C++ `-static-libstdc++ -static-libgcc`、纯 C `-static-libgcc`；macOS 动态链接（不支持静态 libstdc++）。
 
 ## 编码规范（GBK 与 UTF-8）
 
@@ -59,11 +60,14 @@ PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test powershell.ex
 # CMake 模式（本机需安装 cmake）
 PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test/cmake powershell.exe -NoProfile -File scripts/build-cpp.ps1
 
+# 纯 C（直接编译模式向下支持 .c）
+PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test/c powershell.exe -NoProfile -File scripts/build-cpp.ps1
+
 # 运行产物
 ./test/dist/hello-test-v0.0.0-local-windows-x64.exe
 ```
 
-CI 测试：`test.yml` 在 push（`dev` / `main`）、PR、手动触发时，以 6 个运行器（linux/macOS/Windows 的 x64 与 arm64）× 2 构建模式共 12 个矩阵任务运行本 Action，并运行产物校验输出。测试不在 tag push 时触发，因此不会向 Release 误传测试产物。
+CI 测试：`test.yml` 在 push（`dev` / `main`）、PR、手动触发时，以 6 个运行器（linux/macOS/Windows 的 x64 与 arm64）× 3 测试目录（直接编译 C++、CMake、纯 C）共 18 个矩阵任务运行本 Action，并运行产物校验输出。测试不在 tag push 时触发，因此不会向 Release 误传测试产物。
 
 ## 发版流程
 
