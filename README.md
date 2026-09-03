@@ -1,10 +1,10 @@
 # release-cpp-action
 
-[![Test](https://github.com/BlazeSnow/release-cpp-action/actions/workflows/test.yml/badge.svg)](https://github.com/BlazeSnow/release-cpp-action/actions/workflows/test.yml)
-
 构建 Cpp 程序并上传构建产物至 GitHub Release。
 
 在多平台矩阵 workflow 中调用本 Action，即可在每个平台上编译 Cpp 程序，并把产物上传到当前 tag 对应的 GitHub Release。
+
+> **注意**：项目目前处于测试阶段，尚未发布 v1 正式版，`@v1` 引用暂不可用，请先使用 `@main`。
 
 ## 用法
 
@@ -46,26 +46,24 @@ jobs:
 - `myapp-macos-arm64`
 - `myapp-windows-x64.exe`
 
-> 主版本标签（`v1`）只跟随正式版发布，预发布阶段可先用完整版本号引用，如 `BlazeSnow/release-cpp-action@v1.0-beta.1`。
-
 ## 输入参数
 
-| 参数 | 必填 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `name` | 是 | - | 程序名称，用作编译目标名与产物文件名前缀 |
-| `base-dir` | 否 | `.` | BASE 目录，即 Cpp 源码所在目录 |
-| `extra-files` | 否 | - | 额外上传至 Release 的文件，每行一个（相对于 `base-dir`） |
-| `release-body` | 否 | 自动生成 | Release 说明正文（仅在自动创建 Release 时使用） |
-| `release-name` | 否 | tag | 自定义 Release 标题 |
-| `prerelease` | 否 | `false` | 将 Release 标记为预发布版本 |
-| `draft` | 否 | `false` | 将 Release 存为草稿，不直接发布 |
-| `tag` | 否 | 当前 ref 名称 | 目标 Release 的 tag（显式传入后非 tag 触发也会上传） |
-| `token` | 否 | `github.token` | GitHub Token（用于创建/上传 Release） |
+| 参数           | 必填 | 默认值         | 说明                                                     |
+| -------------- | ---- | -------------- | -------------------------------------------------------- |
+| `name`         | 是   | -              | 程序名称，用作编译目标名与产物文件名前缀                 |
+| `base-dir`     | 否   | `.`            | BASE 目录，即 Cpp 源码所在目录                           |
+| `extra-files`  | 否   | -              | 额外上传至 Release 的文件，每行一个（相对于 `base-dir`） |
+| `release-body` | 否   | 自动生成       | Release 说明正文（仅在自动创建 Release 时使用）          |
+| `release-name` | 否   | tag            | 自定义 Release 标题                                      |
+| `prerelease`   | 否   | `false`        | 将 Release 标记为预发布版本                              |
+| `draft`        | 否   | `false`        | 将 Release 存为草稿，不直接发布                          |
+| `tag`          | 否   | 当前 ref 名称  | 目标 Release 的 tag（显式传入后非 tag 触发也会上传）     |
+| `token`        | 否   | `github.token` | GitHub Token（用于创建/上传 Release）                    |
 
 ## 输出参数
 
-| 参数 | 说明 |
-| --- | --- |
+| 参数            | 说明         |
+| --------------- | ------------ |
 | `artifact-path` | 构建产物路径 |
 
 ## 构建规则
@@ -80,13 +78,3 @@ BASE 目录下存在 `CMakeLists.txt` 时使用 CMake 构建（Release 模式）
 - Release 不存在时自动创建：标题取 `release-name`（缺省与 tag 同名），正文取 `release-body`（缺省自动生成）；`prerelease` / `draft` 参数控制对应标记。
 - `extra-files` 可将额外文件（如 LICENSE、配置文件）随产物一起上传，每行一个，相对于 `base-dir`，不支持目录。
 - 使用 `--clobber` 上传，重复执行会覆盖同名产物；多平台矩阵的各个任务向同一个 Release 上传各自平台的产物。
-
-## 本仓库发版
-
-1. 更新 `VERSION` 与 `CHANGELOG.md`
-2. 运行 `./tag.ps1` 创建并推送 tag
-3. `release.yml` 自动校验 tag 与 `VERSION` 一致、创建 GitHub Release；正式版还会更新主版本标签（如 `v1.0.0` → `v1`），预发布版本跳过
-
-## License
-
-[MIT](LICENSE) © [BlazeSnow](https://github.com/BlazeSnow)
