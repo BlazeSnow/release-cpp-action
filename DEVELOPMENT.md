@@ -1,0 +1,67 @@
+# DEVELOPMENT
+
+## 架构
+
+| 文件 | 说明 |
+| --- | --- |
+| `action.yml` | composite Action 入口：构建 + 上传 Release |
+| `scripts/build-cpp.sh` | Linux / macOS 构建脚本（bash） |
+| `scripts/build-cpp.ps1` | Windows 构建脚本（PowerShell） |
+| `.github/workflows/test.yml` | 多平台矩阵测试（本仓库自测） |
+| `.github/workflows/release.yml` | 本仓库发版流程（tag 触发） |
+| `scripts/verify-tag-version.sh` | 校验触发 tag 与 `VERSION` 一致 |
+| `scripts/update-major-tag.sh` | 正式版强制更新主版本标签（`v1`） |
+| `tag.ps1` | 本地读取 `VERSION` 创建并推送 tag |
+| `test/`、`test/cmake/` | 直接编译与 CMake 两种模式的测试样例 |
+
+## Action 流程
+
+1. 构建步骤按 `runner.os` 分流：非 Windows 走 `build-cpp.sh`，Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`BASE_DIR` 传入，避免 shell 注入。
+2. 构建脚本自动检测平台与架构，产物命名 `<name>-<os>-<arch>[.exe]`，输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
+3. 上传步骤仅在 `refs/tags/*` 触发时执行：Release 不存在则创建（tag 含 `-` 判定为预发布，与仓库自身 `release.yml` 规则一致），随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
+
+### CMake 模式
+
+- 配置：`cmake -S <base-dir> -B <base-dir>/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=<base-dir>/build/bin`
+- 要求 CMake 目标名与输入 `name` 一致；若项目自定义了输出目录或多配置生成器（如 Visual Studio）把产物放进子目录，脚本会递归查找兜底（排除 `CMakeFiles/`）。
+
+### 直接编译模式
+
+- 编译 `<base-dir>` 顶层（不递归）的 `*.cpp` / `*.cc` / `*.cxx`。
+- 编译器：Linux/macOS 优先 `c++`，回退 `g++`；Windows 使用 MinGW `g++`（GitHub 托管运行器预装）。
+- 编译参数：`-std=c++17 -O2`。
+- 链接策略：Windows `-static`（产物免依赖）；Linux `-static-libstdc++ -static-libgcc`；macOS 动态链接（不支持静态 libstdc++）。
+
+## 编码规范（GBK 与 UTF-8）
+
+- 所有文本文件统一 **UTF-8 无 BOM**，唯一例外：`*.ps1` 使用 **UTF-8 带 BOM**。Windows PowerShell 5.1 在无 BOM 时按系统 ANSI（简体中文系统即 GBK / cp936）解码脚本，中文注释会乱码甚至解析失败；带 BOM 可同时兼容 5.1 与 PowerShell 7，与 `tag.ps1` 约定一致。
+- `.gitattributes` 已固定换行符：`.sh` / `.yml` 为 LF，`.ps1` 为 CRLF。新增文件类型时注意补充规则。
+- CI 上所有日志为 UTF-8，中文正常显示；在 GBK 代码页的 Windows 控制台本地运行 ps1 时，第三方工具输出的中文可能乱码，不影响 CI。
+- 禁止以 GBK 编码保存任何文件。
+
+## 本地测试
+
+```bash
+# 语法检查
+bash -n scripts/build-cpp.sh
+
+# PowerShell 解析检查（本机为 GBK 代码页，可顺带验证 BOM 是否正确）
+powershell.exe -NoProfile -Command "$t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile('E:\release-cpp-action\scripts\build-cpp.ps1', [ref]$t, [ref]$e) | Out-Null; if ($e) { $e | ForEach-Object { $_.Message }; exit 1 } else { 'ps1 OK' }"
+
+# 功能测试（build-cpp.sh 仅支持 Linux/macOS；Windows 本机用 ps1 验证，
+# Git Bash 的 uname 为 MINGW64_NT-*，会被脚本明确拒绝）
+PROGRAM_NAME=hello-test BASE_DIR=test powershell.exe -NoProfile -File scripts/build-cpp.ps1
+# CMake 模式（本机需安装 cmake）
+PROGRAM_NAME=hello-test BASE_DIR=test/cmake powershell.exe -NoProfile -File scripts/build-cpp.ps1
+
+# 运行产物
+./test/dist/hello-test-windows-x64.exe
+```
+
+CI 测试：`test.yml` 在 push（`dev` / `main`）、PR、手动触发时，以 3 平台 × 2 构建模式共 6 个矩阵任务运行本 Action，并运行产物校验输出。测试不在 tag push 时触发，因此不会向 Release 误传测试产物。
+
+## 发版流程
+
+1. 更新 `VERSION`（如 `v1.0.0`）与 `CHANGELOG.md`
+2. 提交后运行 `./tag.ps1`，确认后自动创建并推送 tag
+3. `release.yml` 自动执行：校验 tag 与 `VERSION` 一致 → 创建 Release（body 指向 CHANGELOG.md）→ 正式版（tag 不含 `-`）更新主版本标签（`v1.0.0` → `v1`）；预发布版本跳过主版本标签更新
