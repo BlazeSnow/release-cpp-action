@@ -12,6 +12,11 @@ inputs:
     description: 'BASE 目录，即 Cpp 源码所在目录（含 CMakeLists.txt 或 *.cpp）'
     required: false
     default: '.'
+  release:
+    description: '是否上传构建产物至 GitHub Release'
+    required: false
+    default: false
+    type: boolean
   extra-files:
     description: '额外上传至 Release 的文件，每行一个（相对于 BASE 目录）'
     required: false
@@ -75,7 +80,7 @@ runs:
       run: '& "${{ github.action_path }}/scripts/build-cpp.ps1"'
 
     - name: 上传构建产物至 GitHub Release
-      if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+      if: inputs.release
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}

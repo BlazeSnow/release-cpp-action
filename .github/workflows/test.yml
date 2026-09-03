@@ -24,7 +24,7 @@ jobs:
     - name: 检出仓库
       uses: actions/checkout@v7
 
-    - name: 构建（Release 上传仅在 tag 触发时执行，分支触发自动跳过）
+    - name: 构建（未开启 release 参数，不上传）
       id: action
       uses: ./
       with:

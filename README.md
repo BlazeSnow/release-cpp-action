@@ -37,6 +37,7 @@ jobs:
       with:
         name: myapp
         base-dir: src
+        release: true
         prerelease: ${{ contains(github.ref_name, '-') }}
 ```
 
@@ -52,6 +53,7 @@ jobs:
 | -------------- | ---- | -------------- | -------------------------------------------------------- |
 | `name`         | 是   | -              | 程序名称，用作编译目标名与产物文件名前缀                 |
 | `base-dir`     | 否   | `.`            | BASE 目录，即 Cpp 源码所在目录                           |
+| `release`      | 否   | `false`        | 是否上传构建产物至 GitHub Release                        |
 | `extra-files`  | 否   | -              | 额外上传至 Release 的文件，每行一个（相对于 `base-dir`） |
 | `release-body` | 否   | 自动生成       | Release 说明正文（仅在自动创建 Release 时使用）          |
 | `release-name` | 否   | tag            | 自定义 Release 标题                                      |
@@ -75,7 +77,7 @@ BASE 目录下存在 `CMakeLists.txt` 时使用 CMake 构建（Release 模式）
 
 ## Release 上传规则
 
-- 仅当 workflow 由 tag 触发或显式传入 `tag` 参数时上传，其他触发（push 分支 / PR）自动跳过，便于日常测试。
+- 设置 `release: true` 才上传构建产物，缺省仅构建不上传，便于日常测试；目标 Release 的 tag 取 `tag` 参数（缺省为当前 ref 名称，tag 推送触发时即该 tag）。
 - Release 不存在时自动创建：标题取 `release-name`（缺省与 tag 同名），正文取 `release-body`（缺省自动生成）；`prerelease` / `draft` 参数控制对应标记。
 - `extra-files` 可将额外文件（如 LICENSE、配置文件）随产物一起上传，每行一个，相对于 `base-dir`，不支持目录。
 - 使用 `--clobber` 上传，重复执行会覆盖同名产物；多平台矩阵的各个任务向同一个 Release 上传各自平台的产物。
