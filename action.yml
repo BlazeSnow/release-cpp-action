@@ -80,9 +80,9 @@ runs:
       run: '& "${{ github.action_path }}/scripts/build-cpp.ps1"'
 
     - name: 上传构建产物至 GitHub Release
-      if: inputs.release
       shell: bash
       env:
+        RELEASE: ${{ inputs.release }}
         GH_TOKEN: ${{ inputs.token }}
         GH_REPO: ${{ github.repository }}
         TAG_NAME: ${{ inputs.tag || github.ref_name }}

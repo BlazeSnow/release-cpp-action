@@ -2,6 +2,7 @@
 # 上传构建产物至 GitHub Release
 # 读取环境变量：
 #   GH_TOKEN / GH_REPO  gh CLI 凭据与仓库（由 action.yml 注入）
+#   RELEASE             true 时才上传（开关判断必须在脚本内）
 #   TAG_NAME            目标 Release 的 tag
 #   BASE_DIR            BASE 目录（产物位于 <BASE_DIR>/dist/）
 #   EXTRA_FILES         额外上传的文件，每行一个（相对于 BASE 目录，可为空）
@@ -10,6 +11,12 @@
 #   PRERELEASE          true 时标记为预发布版本
 #   DRAFT               true 时存为草稿
 set -euo pipefail
+
+# composite 输入在 if 表达式里是字符串（'false' 也为真），布尔开关不能写在步骤 if 上
+if [ "${RELEASE:-false}" != "true" ]; then
+	echo "release 参数未开启，跳过上传"
+	exit 0
+fi
 
 tag="${TAG_NAME:?缺少 TAG_NAME}"
 base_dir="${BASE_DIR:-.}"

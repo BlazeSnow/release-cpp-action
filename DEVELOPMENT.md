@@ -20,7 +20,8 @@
 
 1. 构建步骤按 `runner.os` 分流：非 Windows 走 `build-cpp.sh`，Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR` 传入，避免 shell 注入。
 2. 构建脚本自动检测平台与架构，产物命名 `<name>-<version>-<os>-<arch>[.exe]`（版本号中的 `/` 替换为 `-`，兼容 PR 触发时的 `<PR 号>/merge`），输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
-3. 上传步骤仅在 `release` 参数为 true 时执行（`scripts/upload-release.sh`，读取 `TAG_NAME`、`EXTRA_FILES`、`RELEASE_BODY`、`RELEASE_NAME`、`PRERELEASE`、`DRAFT`）：Release 不存在则创建，随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
+3. 上传步骤始终执行 `scripts/upload-release.sh`，由脚本内的 `RELEASE` 开关控制，仅显式 `true` 时上传。布尔开关不能写在步骤 `if` 上——composite 输入在表达式里是字符串，`'false'` 也为真。
+4. 上传逻辑（读取 `TAG_NAME`、`EXTRA_FILES`、`RELEASE_BODY`、`RELEASE_NAME`、`PRERELEASE`、`DRAFT`）：Release 不存在则创建，随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
 
 ### CMake 模式
 
