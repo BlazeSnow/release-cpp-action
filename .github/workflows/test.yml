@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel, windows-latest, windows-11-arm]
-        dir: [test, test/cmake]
+        dir: [test, test/cmake, test/c]
     runs-on: ${{ matrix.os }}
     steps:
     - name: 检出仓库
