@@ -18,4 +18,4 @@
 - 产物命名 `<name>-<version>-<os>-<arch>[.exe]`（版本号取 `tag` 输入，缺省为当前 ref 名称），输出到 `<base-dir>/dist/`，输出 `version` 与 `artifact-path`
 - Release 上传开关 `release` 与参数：`extra-files`、`release-body`、`release-name`、`prerelease`、`draft`、`tag`、`token`
 - 仓库发版流程：tag 与 `VERSION` 校验、GitHub Release 创建、正式版主版本标签跟随（`scripts/verify-tag-version.sh`、`scripts/update-major-tag.sh`、`tag.ps1`）
-- 多平台矩阵测试工作流 `test.yml`（ubuntu / windows / macos × 两种构建模式）
+- 多平台矩阵测试工作流 `test.yml`（linux/macOS/Windows 的 x64 与 arm64 × 两种构建模式）
