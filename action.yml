@@ -1,0 +1,69 @@
+name: 'release-cpp-action'
+description: '构建 Cpp 程序并上传构建产物至 GitHub Release（在多平台矩阵 workflow 中每个平台调用一次）'
+branding:
+  icon: 'package'
+  color: 'green'
+
+inputs:
+  name:
+    description: '程序名称，用作编译目标名与产物文件名前缀'
+    required: true
+  base-dir:
+    description: 'BASE 目录，即 Cpp 源码所在目录（含 CMakeLists.txt 或 *.cpp）'
+    required: false
+    default: '.'
+
+outputs:
+  artifact-path:
+    description: '构建产物路径'
+    value: ${{ steps.build.outputs.artifact-path || steps.build-windows.outputs.artifact-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 构建 Cpp 程序
+      id: build
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        PROGRAM_NAME: ${{ inputs.name }}
+        BASE_DIR: ${{ inputs.base-dir }}
+      run: bash "${{ github.action_path }}/scripts/build-cpp.sh"
+
+    - name: 构建 Cpp 程序（Windows）
+      id: build-windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        PROGRAM_NAME: ${{ inputs.name }}
+        BASE_DIR: ${{ inputs.base-dir }}
+      run: '& "${{ github.action_path }}/scripts/build-cpp.ps1"'
+
+    - name: 上传构建产物至 GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        TAG_NAME: ${{ github.ref_name }}
+        BASE_DIR: ${{ inputs.base-dir }}
+      run: |
+        # 兼容 Windows 风格的反斜杠路径
+        BASE_DIR="${BASE_DIR//\\//}"
+        shopt -s nullglob
+        files=("$BASE_DIR"/dist/*)
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "::error::未找到构建产物：$BASE_DIR/dist/"
+          exit 1
+        fi
+        if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          # tag 含 '-'（如 v1.0-beta.1）判定为预发布，与仓库自身 release.yml 规则一致
+          extra=''
+          if [ "${TAG_NAME#*-}" != "$TAG_NAME" ]; then
+            extra='--prerelease'
+          fi
+          # 多平台矩阵并发创建 Release 时可能竞争，失败大概率是其他矩阵任务已创建
+          gh release create "$TAG_NAME" --title "$TAG_NAME" --generate-notes $extra || true
+        fi
+        gh release upload "$TAG_NAME" "${files[@]}" --clobber
+        echo "已上传至 Release $TAG_NAME: ${files[*]}"
