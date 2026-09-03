@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出仓库
+      uses: actions/checkout@v7
+
+    - name: 校验 tag 与 VERSION 一致
+      run: bash scripts/verify-tag-version.sh
+
+    - name: 创建 GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ github.ref_name }}
+        name: ${{ github.ref_name }}
+        body: https://github.com/BlazeSnow/release-cpp-action/blob/main/CHANGELOG.md
+        prerelease: ${{ contains(github.ref_name, '-') }}
+        allowUpdates: true
+
+    - name: 更新主版本标签（仅正式版）
+      run: bash scripts/update-major-tag.sh
