@@ -12,6 +12,36 @@ inputs:
     description: 'BASE 目录，即 Cpp 源码所在目录（含 CMakeLists.txt 或 *.cpp）'
     required: false
     default: '.'
+  extra-files:
+    description: '额外上传至 Release 的文件，每行一个（相对于 BASE 目录）'
+    required: false
+    default: ''
+  release-body:
+    description: 'Release 说明正文（仅在自动创建 Release 时使用，默认自动生成）'
+    required: false
+    default: ''
+  release-name:
+    description: '自定义 Release 标题（默认与 tag 同名）'
+    required: false
+    default: ''
+  prerelease:
+    description: '将 Release 标记为预发布版本'
+    required: false
+    default: false
+    type: boolean
+  draft:
+    description: '将 Release 存为草稿，不直接发布'
+    required: false
+    default: false
+    type: boolean
+  tag:
+    description: '目标 Release 的 tag（默认为当前 ref 名称，建议以 tag 推送触发）'
+    required: false
+    default: ''
+  token:
+    description: 'GitHub Token（用于创建/上传 Release）'
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   artifact-path:
@@ -40,11 +70,16 @@ runs:
       run: '& "${{ github.action_path }}/scripts/build-cpp.ps1"'
 
     - name: 上传构建产物至 GitHub Release
-      if: startsWith(github.ref, 'refs/tags/')
+      if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.token }}
         GH_REPO: ${{ github.repository }}
-        TAG_NAME: ${{ github.ref_name }}
+        TAG_NAME: ${{ inputs.tag || github.ref_name }}
         BASE_DIR: ${{ inputs.base-dir }}
+        EXTRA_FILES: ${{ inputs.extra-files }}
+        RELEASE_BODY: ${{ inputs.release-body }}
+        RELEASE_NAME: ${{ inputs.release-name }}
+        PRERELEASE: ${{ inputs.prerelease }}
+        DRAFT: ${{ inputs.draft }}
       run: bash "${{ github.action_path }}/scripts/upload-release.sh"
