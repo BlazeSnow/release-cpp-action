@@ -35,11 +35,4 @@ jobs:
       shell: bash
       env:
         ARTIFACT: ${{ steps.action.outputs.artifact-path }}
-      run: |
-        echo "产物: $ARTIFACT"
-        output="$("$ARTIFACT")"
-        echo "输出: $output"
-        if [ "$output" != "Hello World!" ]; then
-          echo "::error::产物输出与预期不符: $output"
-          exit 1
-        fi
+      run: bash test/verify-output.sh

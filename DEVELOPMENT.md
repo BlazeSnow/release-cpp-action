@@ -7,18 +7,20 @@
 | `action.yml` | composite Action 入口：构建 + 上传 Release |
 | `scripts/build-cpp.sh` | Linux / macOS 构建脚本（bash） |
 | `scripts/build-cpp.ps1` | Windows 构建脚本（PowerShell） |
+| `scripts/upload-release.sh` | 上传产物至 GitHub Release（bash，各平台通用） |
 | `.github/workflows/test.yml` | 多平台矩阵测试（本仓库自测） |
 | `.github/workflows/release.yml` | 本仓库发版流程（tag 触发） |
 | `scripts/verify-tag-version.sh` | 校验触发 tag 与 `VERSION` 一致 |
 | `scripts/update-major-tag.sh` | 正式版强制更新主版本标签（`v1`） |
 | `tag.ps1` | 本地读取 `VERSION` 创建并推送 tag |
 | `test/`、`test/cmake/` | 直接编译与 CMake 两种模式的测试样例 |
+| `test/verify-output.sh` | 测试用：运行产物并校验输出 |
 
 ## Action 流程
 
 1. 构建步骤按 `runner.os` 分流：非 Windows 走 `build-cpp.sh`，Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`BASE_DIR` 传入，避免 shell 注入。
 2. 构建脚本自动检测平台与架构，产物命名 `<name>-<os>-<arch>[.exe]`，输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
-3. 上传步骤仅在 `refs/tags/*` 触发时执行：Release 不存在则创建（tag 含 `-` 判定为预发布，与仓库自身 `release.yml` 规则一致），随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
+3. 上传步骤仅在 `refs/tags/*` 触发时执行（`scripts/upload-release.sh`）：Release 不存在则创建（tag 含 `-` 判定为预发布，与仓库自身 `release.yml` 规则一致），随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
 
 ### CMake 模式
 
@@ -43,7 +45,7 @@
 
 ```bash
 # 语法检查
-bash -n scripts/build-cpp.sh
+bash -n scripts/*.sh test/verify-output.sh
 
 # PowerShell 解析检查（本机为 GBK 代码页，可顺带验证 BOM 是否正确）
 powershell.exe -NoProfile -Command "$t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile('E:\release-cpp-action\scripts\build-cpp.ps1', [ref]$t, [ref]$e) | Out-Null; if ($e) { $e | ForEach-Object { $_.Message }; exit 1 } else { 'ps1 OK' }"
