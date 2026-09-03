@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  push:
+    branches:
+    - dev
+    - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }} / ${{ matrix.dir }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel, windows-latest, windows-11-arm]
+        dir: [test, test/cmake]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: 检出仓库
+      uses: actions/checkout@v7
+
+    - name: 构建（未开启 release 参数，不上传）
+      id: action
+      uses: ./
+      with:
+        name: hello-test
+        base-dir: ${{ matrix.dir }}
+
+    - name: 运行产物并校验输出
+      shell: bash
+      env:
+        ARTIFACT: ${{ steps.action.outputs.artifact-path }}
+      run: bash test/verify-output.sh
