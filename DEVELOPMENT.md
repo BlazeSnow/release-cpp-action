@@ -60,7 +60,7 @@ PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test/cmake powersh
 ./test/dist/hello-test-v0.0.0-local-windows-x64.exe
 ```
 
-CI 测试：`test.yml` 在 push（`dev` / `main`）、PR、手动触发时，以 3 平台 × 2 构建模式共 6 个矩阵任务运行本 Action，并运行产物校验输出。测试不在 tag push 时触发，因此不会向 Release 误传测试产物。
+CI 测试：`test.yml` 在 push（`dev` / `main`）、PR、手动触发时，以 5 个运行器（linux x64/arm64、macOS arm64/x64、windows x64）× 2 构建模式共 10 个矩阵任务运行本 Action，并运行产物校验输出。测试不在 tag push 时触发，因此不会向 Release 误传测试产物。
 
 ## 发版流程
 

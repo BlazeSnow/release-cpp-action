@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-26-intel, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - name: 检出仓库
@@ -41,11 +41,15 @@ jobs:
         prerelease: ${{ contains(github.ref_name, '-') }}
 ```
 
-打上 `v1.0.0` 标签推送后，三个平台会分别编译 `src` 目录下的程序，并把产物上传到该 tag 的 Release：
+打上 `v1.0.0` 标签推送后，五个平台会分别编译 `src` 目录下的程序，并把产物上传到该 tag 的 Release：
 
 - `myapp-v1.0.0-linux-x64`
+- `myapp-v1.0.0-linux-arm64`
 - `myapp-v1.0.0-macos-arm64`
+- `myapp-v1.0.0-macos-x64`
 - `myapp-v1.0.0-windows-x64.exe`
+
+> macOS 的 `-latest` 标签只有 arm64，x64 需用 `macos-26-intel`（`-large` 后缀为付费 larger runner）；Linux arm64 免费标签为 `ubuntu-24.04-arm`；Windows arm64 镜像（`windows-11-arm`）无 C++ 工具链，暂不支持。
 
 ## 输入参数
 
