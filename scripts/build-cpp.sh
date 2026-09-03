@@ -4,6 +4,7 @@
 #   PROGRAM_NAME     程序名称（必填）
 #   PROGRAM_VERSION  版本号（必填，进入产物文件名）
 #   BASE_DIR         BASE 目录（默认 .）
+#   CXX_STANDARD     C++ 标准（仅直接编译模式，编号或完整 -std 值，默认 17）
 # 产物输出到 <BASE_DIR>/dist/<name>-<version>-linux-<arch>
 set -euo pipefail
 
@@ -14,6 +15,12 @@ version="${version//\//-}"
 base_dir="${BASE_DIR:-.}"
 # 兼容 Windows 风格的反斜杠路径
 base_dir="${base_dir//\\//}"
+# C++ 标准：编号（如 17）或完整 -std 值（如 gnu++20），默认 17
+std="${CXX_STANDARD:-17}"
+case "$std" in
+	c++*|gnu++*) ;;
+	*) std="c++$std" ;;
+esac
 
 if [ ! -d "$base_dir" ]; then
 	echo "::error::BASE 目录不存在: $base_dir"
@@ -71,7 +78,7 @@ else
 
 	# 静态链接 C++ 运行库，产物在旧系统上也能运行
 	link_flags=(-static-libstdc++ -static-libgcc)
-	"$compiler" -std=c++17 -O2 -o "$output" "${link_flags[@]}" "${sources[@]}"
+	"$compiler" -std="$std" -O2 -o "$output" "${link_flags[@]}" "${sources[@]}"
 fi
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then

@@ -12,6 +12,10 @@ inputs:
     description: 'BASE 目录，即 Cpp 源码所在目录（含 CMakeLists.txt 或 *.cpp）'
     required: false
     default: '.'
+  cxx-standard:
+    description: 'C++ 标准，仅直接编译模式：编号（11/14/17/20/23/26）或完整 -std 值（如 gnu++20），默认 17；CMake 模式由 CMakeLists.txt 决定'
+    required: false
+    default: '17'
   release:
     description: '是否上传构建产物至 GitHub Release'
     required: false
@@ -67,6 +71,7 @@ runs:
         PROGRAM_NAME: ${{ inputs.name }}
         PROGRAM_VERSION: ${{ inputs.tag || github.ref_name }}
         BASE_DIR: ${{ inputs.base-dir }}
+        CXX_STANDARD: ${{ inputs.cxx-standard }}
       run: bash "${{ github.action_path }}/scripts/build-cpp.sh"
 
     - name: 构建 Cpp 程序（macOS）
@@ -77,6 +82,7 @@ runs:
         PROGRAM_NAME: ${{ inputs.name }}
         PROGRAM_VERSION: ${{ inputs.tag || github.ref_name }}
         BASE_DIR: ${{ inputs.base-dir }}
+        CXX_STANDARD: ${{ inputs.cxx-standard }}
       run: '"${{ github.action_path }}/scripts/build-cpp-macos.sh"'
 
     - name: 构建 Cpp 程序（Windows）
@@ -87,6 +93,7 @@ runs:
         PROGRAM_NAME: ${{ inputs.name }}
         PROGRAM_VERSION: ${{ inputs.tag || github.ref_name }}
         BASE_DIR: ${{ inputs.base-dir }}
+        CXX_STANDARD: ${{ inputs.cxx-standard }}
       run: '& "${{ github.action_path }}/scripts/build-cpp.ps1"'
 
     - name: 上传构建产物至 GitHub Release

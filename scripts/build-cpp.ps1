@@ -3,6 +3,7 @@
 #   PROGRAM_NAME   程序名称（必填）
 #   PROGRAM_VERSION  版本号（必填，进入产物文件名）
 #   BASE_DIR      BASE 目录（默认 .）
+#   CXX_STANDARD  C++ 标准（仅直接编译模式，编号或完整 -std 值，默认 17）
 # 产物输出到 <BASE_DIR>/dist/<name>-<version>-windows-<arch>.exe
 $ErrorActionPreference = 'Stop'
 
@@ -24,6 +25,14 @@ $version = $version.Replace('/', '-')
 $baseDir = $env:BASE_DIR
 if ([string]::IsNullOrWhiteSpace($baseDir)) {
 	$baseDir = '.'
+}
+# C++ 标准：编号（如 17）或完整 -std 值（如 gnu++20），默认 17
+$std = $env:CXX_STANDARD
+if ([string]::IsNullOrWhiteSpace($std)) {
+	$std = '17'
+}
+if ($std -notmatch '^(c\+\+|gnu\+\+)') {
+	$std = "c++$std"
 }
 
 if (-not (Test-Path -LiteralPath $baseDir -PathType Container)) {
@@ -76,8 +85,8 @@ else {
 		Fail '未找到 C++ 编译器 g++（GitHub 托管 Windows 运行器自带 MinGW）'
 	}
 
-	# -static 静态链接运行库，产物免依赖可独立分发
-	& g++ -std=c++17 -O2 -static -o $output $sources.FullName
+	# -static 静态链接运行库，产物免依赖可独立分发；"-std=$std" 必须带引号，否则 PowerShell 按字面量传递
+	& g++ "-std=$std" -O2 -static -o $output $sources.FullName
 	if ($LASTEXITCODE -ne 0) { Fail '编译失败' }
 }
 
