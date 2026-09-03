@@ -1,7 +1,7 @@
 #include <cstdio>
-#include<iostream>
+#include <iostream>
 
-int main(){
+int main() {
     printf("Hello World!\n");
     return 0;
 }
