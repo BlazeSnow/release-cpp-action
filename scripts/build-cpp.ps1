@@ -4,6 +4,7 @@
 #   PROGRAM_VERSION  版本号（必填，进入产物文件名）
 #   BASE_DIR      BASE 目录（默认 .）
 #   CXX_STANDARD  C++ 标准（仅直接编译模式，编号或完整 -std 值，默认 17）
+#   C_STANDARD    C 标准（仅直接编译模式，编号或完整 -std 值，缺省为编译器默认）
 # 产物输出到 <BASE_DIR>/dist/<name>-<version>-windows-<arch>.exe
 $ErrorActionPreference = 'Stop'
 
@@ -33,6 +34,11 @@ if ([string]::IsNullOrWhiteSpace($std)) {
 }
 if ($std -notmatch '^(c\+\+|gnu\+\+)') {
 	$std = "c++$std"
+}
+# C 标准：编号（如 11）或完整 -std 值（如 gnu11），缺省为编译器默认
+$cStd = $env:C_STANDARD
+if (-not [string]::IsNullOrWhiteSpace($cStd) -and $cStd -notmatch '^(c|gnu)') {
+	$cStd = "c$cStd"
 }
 
 if (-not (Test-Path -LiteralPath $baseDir -PathType Container)) {
@@ -74,20 +80,67 @@ if (Test-Path -LiteralPath $cmakeLists -PathType Leaf) {
 	Move-Item -LiteralPath $built -Destination $output -Force
 }
 else {
-	# 直接编译模式：编译 BASE 目录顶层的 Cpp 源文件（不递归）
-	$sources = Get-ChildItem -LiteralPath $baseDir -File |
-		Where-Object { $_.Extension -in '.cpp', '.cc', '.cxx' }
+	# 直接编译模式：编译 BASE 目录顶层的 C/C++ 源文件（不递归）
+	$sources = @(Get-ChildItem -LiteralPath $baseDir -File |
+		Where-Object { $_.Extension -in '.c', '.cpp', '.cc', '.cxx' })
 	if (-not $sources) {
-		Fail "$baseDir 下既无 CMakeLists.txt 也无 Cpp 源文件（*.cpp/*.cc/*.cxx）"
+		Fail "$baseDir 下既无 CMakeLists.txt 也无 C/C++ 源文件（*.c/*.cpp/*.cc/*.cxx）"
 	}
 
-	if (-not (Get-Command 'g++' -ErrorAction SilentlyContinue)) {
-		Fail '未找到 C++ 编译器 g++（GitHub 托管 Windows 运行器自带 MinGW）'
+	# 按语言分组
+	$cSources = @($sources | Where-Object { $_.Extension -eq '.c' })
+	$cxxSources = @($sources | Where-Object { $_.Extension -ne '.c' })
+
+	$cStdFlags = @()
+	if ($cStd) {
+		$cStdFlags = @("-std=$cStd")
 	}
 
-	# -static 静态链接运行库，产物免依赖可独立分发；"-std=$std" 必须带引号，否则 PowerShell 按字面量传递
-	& g++ "-std=$std" -O2 -static -o $output $sources.FullName
-	if ($LASTEXITCODE -ne 0) { Fail '编译失败' }
+	# C 编译器：GitHub 托管 Windows 运行器自带 MinGW
+	$cCompiler = $null
+	foreach ($candidate in 'gcc', 'cc') {
+		if (Get-Command $candidate -ErrorAction SilentlyContinue) {
+			$cCompiler = $candidate
+			break
+		}
+	}
+
+	if (-not $cxxSources) {
+		# 纯 C：C 编译器直接编译链接
+		if (-not $cCompiler) {
+			Fail '未找到 C 编译器 gcc/cc（GitHub 托管 Windows 运行器自带 MinGW）'
+		}
+		# -static 静态链接运行库，产物免依赖可独立分发
+		& $cCompiler @cStdFlags -O2 -static -o $output $cSources.FullName
+		if ($LASTEXITCODE -ne 0) { Fail '编译失败' }
+	}
+	else {
+		if (-not (Get-Command 'g++' -ErrorAction SilentlyContinue)) {
+			Fail '未找到 C++ 编译器 g++（GitHub 托管 Windows 运行器自带 MinGW）'
+		}
+		$cObjects = @()
+		if ($cSources) {
+			# .c 需由 C 编译器单独编译成 .o（C++ 编译器会把 .c 当 C++ 编译），再与 C++ 源文件一并链接
+			if (-not $cCompiler) {
+				Fail '未找到 C 编译器 gcc/cc（GitHub 托管 Windows 运行器自带 MinGW）'
+			}
+			$objDir = Join-Path ([System.IO.Path]::GetTempPath()) ("release-cpp-action-" + [System.Guid]::NewGuid().ToString('N'))
+			New-Item -ItemType Directory -Path $objDir | Out-Null
+			foreach ($src in $cSources) {
+				$obj = Join-Path $objDir ($src.BaseName + '.o')
+				& $cCompiler @cStdFlags -O2 -c -o $obj $src.FullName
+				if ($LASTEXITCODE -ne 0) { Fail "编译失败: $($src.Name)" }
+				$cObjects += $obj
+			}
+		}
+		# -static 静态链接运行库，产物免依赖可独立分发；"-std=$std" 必须带引号，否则 PowerShell 按字面量传递
+		$linkSources = @($cxxSources.FullName) + $cObjects
+		& g++ "-std=$std" -O2 -static -o $output $linkSources
+		if ($LASTEXITCODE -ne 0) { Fail '编译失败' }
+		if ($cObjects) {
+			Remove-Item -LiteralPath $objDir -Recurse -Force
+		}
+	}
 }
 
 if ($env:GITHUB_OUTPUT) {
