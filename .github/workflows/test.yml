@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches:
+    - dev
+    - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }} / ${{ matrix.dir }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        dir: [test, test/cmake]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: 检出仓库
+      uses: actions/checkout@v7
+
+    - name: 构建（Release 上传仅在 tag 触发时执行，分支触发自动跳过）
+      id: action
+      uses: ./
+      with:
+        name: hello-test
+        base-dir: ${{ matrix.dir }}
+
+    - name: 运行产物并校验输出
+      shell: bash
+      env:
+        ARTIFACT: ${{ steps.action.outputs.artifact-path }}
+      run: |
+        echo "产物: $ARTIFACT"
+        output="$("$ARTIFACT")"
+        echo "输出: $output"
+        if [ "$output" != "Hello World!" ]; then
+          echo "::error::产物输出与预期不符: $output"
+          exit 1
+        fi
