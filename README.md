@@ -38,8 +38,6 @@ jobs:
 
 产物命名 `<name>-<版本>-<os>-<arch>[.exe]`（如 `myapp-v1.0.0-windows-x64.exe`），版本号取 `tag` 参数，缺省为当前 ref 名称。开启 `release` 后产物上传至该 tag 的 Release，不存在则自动创建。
 
-> macOS 的 `-latest` 标签只有 arm64，x64 用 `macos-26-intel`（`-large` 后缀为付费 larger runner）；Linux arm64 用 `ubuntu-24.04-arm`；Windows arm64 用 `windows-11-arm`。
-
 ## 输入参数
 
 | 参数 | 必填 | 默认值 | 说明 |
