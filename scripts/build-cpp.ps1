@@ -1,8 +1,9 @@
 ﻿# 构建 Cpp 程序（Windows）
 # 读取环境变量：
-#   PROGRAM_NAME  程序名称（必填）
+#   PROGRAM_NAME   程序名称（必填）
+#   PROGRAM_VERSION  版本号（必填，进入产物文件名）
 #   BASE_DIR      BASE 目录（默认 .）
-# 产物输出到 <BASE_DIR>/dist/<name>-windows-<arch>.exe
+# 产物输出到 <BASE_DIR>/dist/<name>-<version>-windows-<arch>.exe
 $ErrorActionPreference = 'Stop'
 
 function Fail([string]$message) {
@@ -14,6 +15,12 @@ $name = $env:PROGRAM_NAME
 if ([string]::IsNullOrWhiteSpace($name)) {
 	Fail '缺少环境变量 PROGRAM_NAME'
 }
+$version = $env:PROGRAM_VERSION
+if ([string]::IsNullOrWhiteSpace($version)) {
+	Fail '缺少环境变量 PROGRAM_VERSION'
+}
+# ref 名可能含 /（如 PR 触发时的 <PR 号>/merge），替换为 - 保证产物名合法
+$version = $version.Replace('/', '-')
 $baseDir = $env:BASE_DIR
 if ([string]::IsNullOrWhiteSpace($baseDir)) {
 	$baseDir = '.'
@@ -32,7 +39,7 @@ switch ($arch) {
 }
 
 $distDir = Join-Path $baseDir 'dist'
-$output = Join-Path $distDir "$name-$os-$arch.exe"
+$output = Join-Path $distDir "$name-$version-$os-$arch.exe"
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 
 $cmakeLists = Join-Path $baseDir 'CMakeLists.txt'

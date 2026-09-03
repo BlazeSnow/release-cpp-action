@@ -18,8 +18,8 @@
 
 ## Action 流程
 
-1. 构建步骤按 `runner.os` 分流：非 Windows 走 `build-cpp.sh`，Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`BASE_DIR` 传入，避免 shell 注入。
-2. 构建脚本自动检测平台与架构，产物命名 `<name>-<os>-<arch>[.exe]`，输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
+1. 构建步骤按 `runner.os` 分流：非 Windows 走 `build-cpp.sh`，Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR` 传入，避免 shell 注入。
+2. 构建脚本自动检测平台与架构，产物命名 `<name>-<version>-<os>-<arch>[.exe]`（版本号中的 `/` 替换为 `-`，兼容 PR 触发时的 `<PR 号>/merge`），输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
 3. 上传步骤在 tag 触发或显式传入 `tag` 参数时执行（`scripts/upload-release.sh`，读取 `TAG_NAME`、`EXTRA_FILES`、`RELEASE_BODY`、`RELEASE_NAME`、`PRERELEASE`、`DRAFT`）：Release 不存在则创建，随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
 
 ### CMake 模式
@@ -52,12 +52,12 @@ powershell.exe -NoProfile -Command "$t=$null; $e=$null; [System.Management.Autom
 
 # 功能测试（build-cpp.sh 仅支持 Linux/macOS；Windows 本机用 ps1 验证，
 # Git Bash 的 uname 为 MINGW64_NT-*，会被脚本明确拒绝）
-PROGRAM_NAME=hello-test BASE_DIR=test powershell.exe -NoProfile -File scripts/build-cpp.ps1
+PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test powershell.exe -NoProfile -File scripts/build-cpp.ps1
 # CMake 模式（本机需安装 cmake）
-PROGRAM_NAME=hello-test BASE_DIR=test/cmake powershell.exe -NoProfile -File scripts/build-cpp.ps1
+PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test/cmake powershell.exe -NoProfile -File scripts/build-cpp.ps1
 
 # 运行产物
-./test/dist/hello-test-windows-x64.exe
+./test/dist/hello-test-v0.0.0-local-windows-x64.exe
 ```
 
 CI 测试：`test.yml` 在 push（`dev` / `main`）、PR、手动触发时，以 3 平台 × 2 构建模式共 6 个矩阵任务运行本 Action，并运行产物校验输出。测试不在 tag push 时触发，因此不会向 Release 误传测试产物。

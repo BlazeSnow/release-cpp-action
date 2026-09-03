@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # 构建 Cpp 程序（Linux / macOS）
 # 读取环境变量：
-#   PROGRAM_NAME  程序名称（必填）
+#   PROGRAM_NAME   程序名称（必填）
+#   PROGRAM_VERSION  版本号（必填，进入产物文件名）
 #   BASE_DIR      BASE 目录（默认 .）
-# 产物输出到 <BASE_DIR>/dist/<name>-<os>-<arch>
+# 产物输出到 <BASE_DIR>/dist/<name>-<version>-<os>-<arch>
 set -euo pipefail
 
 name="${PROGRAM_NAME:?缺少 PROGRAM_NAME}"
+version="${PROGRAM_VERSION:?缺少 PROGRAM_VERSION}"
+# ref 名可能含 /（如 PR 触发时的 <PR 号>/merge），替换为 - 保证产物名合法
+version="${version//\//-}"
 base_dir="${BASE_DIR:-.}"
 
 if [ ! -d "$base_dir" ]; then
@@ -30,7 +34,7 @@ case "$arch" in
 esac
 
 dist_dir="$base_dir/dist"
-output="$dist_dir/${name}-${os}-${arch}"
+output="$dist_dir/${name}-${version}-${os}-${arch}"
 mkdir -p "$dist_dir"
 
 if [ -f "$base_dir/CMakeLists.txt" ]; then

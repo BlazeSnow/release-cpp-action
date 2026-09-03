@@ -42,9 +42,9 @@ jobs:
 
 打上 `v1.0.0` 标签推送后，三个平台会分别编译 `src` 目录下的程序，并把产物上传到该 tag 的 Release：
 
-- `myapp-linux-x64`
-- `myapp-macos-arm64`
-- `myapp-windows-x64.exe`
+- `myapp-v1.0.0-linux-x64`
+- `myapp-v1.0.0-macos-arm64`
+- `myapp-v1.0.0-windows-x64.exe`
 
 ## 输入参数
 
@@ -62,15 +62,16 @@ jobs:
 
 ## 输出参数
 
-| 参数            | 说明         |
-| --------------- | ------------ |
-| `artifact-path` | 构建产物路径 |
+| 参数            | 说明                                       |
+| --------------- | ------------------------------------------ |
+| `artifact-path` | 构建产物路径                               |
+| `version`       | 版本号（`tag` 输入，缺省为当前 ref 名称）  |
 
 ## 构建规则
 
 BASE 目录下存在 `CMakeLists.txt` 时使用 CMake 构建（Release 模式），要求 CMake 目标名与 `name` 一致；否则直接调用编译器编译该目录下的 `*.cpp` / `*.cc` / `*.cxx`（C++17，`-O2`，不递归子目录）。
 
-产物输出到 `<base-dir>/dist/`，命名为 `<name>-<os>-<arch>[.exe]`（如 `myapp-linux-x64`、`myapp-macos-arm64`、`myapp-windows-x64.exe`）。Windows 产物静态链接运行库，可独立运行；Linux 产物静态链接 C++ 标准库；macOS 产物动态链接。
+产物输出到 `<base-dir>/dist/`，命名为 `<name>-<version>-<os>-<arch>[.exe]`（如 `myapp-v1.0.0-linux-x64`、`myapp-v1.0.0-macos-arm64`、`myapp-v1.0.0-windows-x64.exe`）。版本号取 `tag` 参数（缺省为当前 ref 名称，即 tag 推送触发时的 tag），其中 `/` 会替换为 `-`。Windows 产物静态链接运行库，可独立运行；Linux 产物静态链接 C++ 标准库；macOS 产物动态链接。
 
 ## Release 上传规则
 

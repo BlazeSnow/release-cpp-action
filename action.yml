@@ -47,6 +47,9 @@ outputs:
   artifact-path:
     description: '构建产物路径'
     value: ${{ steps.build.outputs.artifact-path || steps.build-windows.outputs.artifact-path }}
+  version:
+    description: '版本号（tag 输入，缺省为当前 ref 名称）'
+    value: ${{ inputs.tag || github.ref_name }}
 
 runs:
   using: 'composite'
@@ -57,6 +60,7 @@ runs:
       shell: bash
       env:
         PROGRAM_NAME: ${{ inputs.name }}
+        PROGRAM_VERSION: ${{ inputs.tag || github.ref_name }}
         BASE_DIR: ${{ inputs.base-dir }}
       run: bash "${{ github.action_path }}/scripts/build-cpp.sh"
 
@@ -66,6 +70,7 @@ runs:
       shell: pwsh
       env:
         PROGRAM_NAME: ${{ inputs.name }}
+        PROGRAM_VERSION: ${{ inputs.tag || github.ref_name }}
         BASE_DIR: ${{ inputs.base-dir }}
       run: '& "${{ github.action_path }}/scripts/build-cpp.ps1"'
 
