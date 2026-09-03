@@ -19,7 +19,7 @@
 
 ## Action 流程
 
-1. 构建步骤按 `runner.os` 分流：Linux 走 `build-cpp.sh`（bash），macOS 走 `build-cpp-macos.sh`（`shell: zsh {0}` 直接执行，脚本有可执行位；macOS 自带 bash 3.2 过老，故用默认 shell zsh，可用 `(N)` glob 限定符、递归 glob 等 zsh 特性），Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR` 传入，避免 shell 注入。
+1. 构建步骤按 `runner.os` 分流：Linux 走 `build-cpp.sh`（bash），macOS 走 `build-cpp-macos.sh`（`shell: zsh {0}` 直接执行，脚本有可执行位；macOS 自带 bash 3.2 过老，故用默认 shell zsh，可用 `(N)` glob 限定符、递归 glob 等 zsh 特性），Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR`、`CXX_STANDARD` 传入，避免 shell 注入。
 2. 构建脚本自动检测平台与架构，产物命名 `<name>-<version>-<os>-<arch>[.exe]`（版本号中的 `/` 替换为 `-`，兼容 PR 触发时的 `<PR 号>/merge`），输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
 3. 上传步骤始终执行 `scripts/upload-release.sh`，由脚本内的 `RELEASE` 开关控制，仅显式 `true` 时上传。布尔开关不能写在步骤 `if` 上——composite 输入在表达式里是字符串，`'false'` 也为真。
 4. 上传逻辑（读取 `TAG_NAME`、`EXTRA_FILES`、`RELEASE_BODY`、`RELEASE_NAME`、`PRERELEASE`、`DRAFT`）：Release 不存在则创建，随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
@@ -33,7 +33,7 @@
 
 - 编译 `<base-dir>` 顶层（不递归）的 `*.cpp` / `*.cc` / `*.cxx`。
 - 编译器：Linux/macOS 优先 `c++`，回退 `g++`；Windows 使用 MinGW `g++`（GitHub 托管运行器预装）。
-- 编译参数：`-std=c++17 -O2`。
+- 编译参数：`-std=<CXX_STANDARD>`（`cxx-standard` 输入，纯编号自动补 `c++` 前缀，兼容 `gnu++*`，默认 `c++17`）与 `-O2`。
 - 链接策略：Windows `-static`（产物免依赖）；Linux `-static-libstdc++ -static-libgcc`；macOS 动态链接（不支持静态 libstdc++）。
 
 ## 编码规范（GBK 与 UTF-8）
