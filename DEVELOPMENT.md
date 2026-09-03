@@ -5,7 +5,8 @@
 | 文件 | 说明 |
 | --- | --- |
 | `action.yml` | composite Action 入口：构建 + 上传 Release |
-| `scripts/build-cpp.sh` | Linux / macOS 构建脚本（bash） |
+| `scripts/build-cpp.sh` | Linux 构建脚本（bash） |
+| `scripts/build-cpp-macos.sh` | macOS 构建脚本（zsh） |
 | `scripts/build-cpp.ps1` | Windows 构建脚本（PowerShell） |
 | `scripts/upload-release.sh` | 上传产物至 GitHub Release（bash，各平台通用） |
 | `.github/workflows/test.yml` | 多平台矩阵测试（本仓库自测） |
@@ -18,7 +19,7 @@
 
 ## Action 流程
 
-1. 构建步骤按 `runner.os` 分流：非 Windows 走 `build-cpp.sh`，Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR` 传入，避免 shell 注入。
+1. 构建步骤按 `runner.os` 分流：Linux 走 `build-cpp.sh`（bash），macOS 走 `build-cpp-macos.sh`（`shell: zsh {0}` 直接执行，脚本有可执行位；macOS 自带 bash 3.2 过老，故用默认 shell zsh，可用 `(N)` glob 限定符、递归 glob 等 zsh 特性），Windows 走 `build-cpp.ps1`；参数经环境变量 `PROGRAM_NAME`、`PROGRAM_VERSION`（取 `tag` 输入，缺省为当前 ref 名称，即 tag 推送触发时的 tag）、`BASE_DIR` 传入，避免 shell 注入。
 2. 构建脚本自动检测平台与架构，产物命名 `<name>-<version>-<os>-<arch>[.exe]`（版本号中的 `/` 替换为 `-`，兼容 PR 触发时的 `<PR 号>/merge`），输出到 `<base-dir>/dist/`，并通过 `GITHUB_OUTPUT` 回写 `artifact-path`。
 3. 上传步骤始终执行 `scripts/upload-release.sh`，由脚本内的 `RELEASE` 开关控制，仅显式 `true` 时上传。布尔开关不能写在步骤 `if` 上——composite 输入在表达式里是字符串，`'false'` 也为真。
 4. 上传逻辑（读取 `TAG_NAME`、`EXTRA_FILES`、`RELEASE_BODY`、`RELEASE_NAME`、`PRERELEASE`、`DRAFT`）：Release 不存在则创建，随后 `gh release upload --clobber`。多平台矩阵会并发创建 Release，创建失败大概率是其他矩阵任务已建好，故容错跳过。
@@ -51,8 +52,9 @@ bash -n scripts/*.sh test/verify-output.sh
 # PowerShell 解析检查（本机为 GBK 代码页，可顺带验证 BOM 是否正确）
 powershell.exe -NoProfile -Command "$t=$null; $e=$null; [System.Management.Automation.Language.Parser]::ParseFile('E:\release-cpp-action\scripts\build-cpp.ps1', [ref]$t, [ref]$e) | Out-Null; if ($e) { $e | ForEach-Object { $_.Message }; exit 1 } else { 'ps1 OK' }"
 
-# 功能测试（build-cpp.sh 仅支持 Linux/macOS；Windows 本机用 ps1 验证，
-# Git Bash 的 uname 为 MINGW64_NT-*，会被脚本明确拒绝）
+# 功能测试（build-cpp.sh 仅 Linux、build-cpp-macos.sh 仅 macOS，均无法在本地运行；
+# Windows 本机用 ps1 验证，Git Bash 的 uname 为 MINGW64_NT-*，会被脚本明确拒绝）
+# macOS 脚本仅做本地静态检查（如有 zsh）：zsh -n scripts/build-cpp-macos.sh
 PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test powershell.exe -NoProfile -File scripts/build-cpp.ps1
 # CMake 模式（本机需安装 cmake）
 PROGRAM_NAME=hello-test PROGRAM_VERSION=v0.0.0-local BASE_DIR=test/cmake powershell.exe -NoProfile -File scripts/build-cpp.ps1
